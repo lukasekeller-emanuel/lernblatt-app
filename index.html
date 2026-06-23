@@ -594,7 +594,7 @@ LANGUAGE RULES:
 - EXCEPTION: when an exercise specifically practices a foreign language (French/English vocabulary or grammar), the vocabulary words, sentences, and translation targets themselves must be in that foreign language, while the instruction wording (what to do) stays in German.
 - If the detected language of the source content is German, everything is simply in German.
 
-OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commentary, exactly matching this schema:
+OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commentary, no text before or after the JSON object, exactly matching this schema. Your reply will be parsed with JSON.parse, so it must be syntactically valid JSON: use double quotes for every string and key, escape any quotes or newlines inside string values, and never use trailing commas.
 {
   "detectedLanguage": "de" | "fr" | "en",
   "title": "short German title describing the topic/subject, e.g. 'Englisch - Vokabeln: Tiere'",
@@ -610,7 +610,14 @@ OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commen
 }`;
   }
 
-  async function callClaude(apiKey, studentName, interests) {
+  const MAX_RETRIES = 2; // total attempts = MAX_RETRIES + 1
+  const RETRYABLE_STATUS = new Set([408, 409, 425, 429, 500, 502, 503, 504, 529]);
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function callClaudeOnce(apiKey, studentName, interests) {
     const content = photos.map(p => ({
       type: "image",
       source: { type: "base64", media_type: p.mediaType, data: p.base64 }
@@ -632,7 +639,12 @@ OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commen
         model: MODEL,
         max_tokens: 8000,
         system: buildSystemPrompt(),
-        messages: [{ role: "user", content }]
+        // Prefill the assistant turn with the opening brace so Claude continues
+        // straight into JSON instead of adding preamble, markdown fences, etc.
+        messages: [
+          { role: "user", content },
+          { role: "assistant", content: "{" }
+        ]
       })
     });
 
@@ -644,28 +656,54 @@ OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commen
       } catch (e) {
         detail = await response.text().catch(() => "");
       }
-      throw new Error(`Claude API Fehler (${response.status}): ${detail || response.statusText}`);
+      const err = new Error(`Claude API Fehler (${response.status}): ${detail || response.statusText}`);
+      err.retryable = RETRYABLE_STATUS.has(response.status);
+      throw err;
     }
 
     const data = await response.json();
     const textBlock = (data.content || []).find(b => b.type === "text");
     if (!textBlock || !textBlock.text) {
-      throw new Error("Antwort enthielt keinen Text.");
+      const err = new Error("Antwort enthielt keinen Text.");
+      err.retryable = true;
+      throw err;
     }
-    return extractJson(textBlock.text);
+    // Re-attach the prefilled opening brace that the API does not echo back.
+    return extractJson("{" + textBlock.text);
+  }
+
+  async function callClaude(apiKey, studentName, interests, onRetry) {
+    let lastErr;
+    for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+      try {
+        return await callClaudeOnce(apiKey, studentName, interests);
+      } catch (err) {
+        lastErr = err;
+        const isLastAttempt = attempt === MAX_RETRIES + 1;
+        if (!err.retryable || isLastAttempt) throw err;
+        if (onRetry) onRetry(attempt, MAX_RETRIES + 1, err);
+        await sleep(attempt * 800);
+      }
+    }
+    throw lastErr;
   }
 
   function extractJson(text) {
+    let cleaned = text.trim();
+    // Strip markdown code fences if the model added them despite instructions.
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
     try {
-      return JSON.parse(text);
+      return JSON.parse(cleaned);
     } catch (e) { /* fall through */ }
-    const match = text.match(/\{[\s\S]*\}/);
+    const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
       try {
         return JSON.parse(match[0]);
       } catch (e) { /* fall through */ }
     }
-    throw new Error("Die Antwort konnte nicht als JSON gelesen werden.");
+    const err = new Error("Die Antwort von Claude konnte nicht als JSON gelesen werden.");
+    err.retryable = true;
+    throw err;
   }
 
   // ---------- Rendering ----------
@@ -745,7 +783,9 @@ OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commen
     }
     setGenerating(true, "Fotos werden analysiert und Arbeitsblatt erstellt …");
     try {
-      const result = await callClaude(s.apiKey, s.studentName, s.interests);
+      const result = await callClaude(s.apiKey, s.studentName, s.interests, (attempt, maxAttempts) => {
+        setGenerating(true, `Antwort war fehlerhaft, neuer Versuch (${attempt}/${maxAttempts - 1}) …`);
+      });
       lastResult = result;
       renderWorksheet(result, s.studentName);
       resultCard.style.display = "block";
