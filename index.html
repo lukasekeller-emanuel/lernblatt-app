@@ -584,6 +584,11 @@ STEP 3 - Generate a worksheet with 10 to 15 exercises total, following these rul
 - For every exercise, produce a complete, correct model answer suitable for a parent (who may not know the subject) to check against.
 - Suggest how many blank writing lines a student needs: 1 for single words/short translations, 2-3 for sentences/short answers, 3-5 for longer answers.
 
+SELF-CONTAINMENT RULE (critical): the "instruction" field is all the student sees on the worksheet - the "answer" field is never shown next to it. Every instruction must therefore be fully self-contained and solvable from its own text alone, never relying on something that only appears in the answer.
+- For "vocab_translation" specifically: the instruction MUST literally quote the exact source word or sentence to be translated, plus state the translation direction, e.g. instruction: "Übersetze ins Deutsche: 'the cat'" with answer: "die Katze" - NEVER write an instruction like "Übersetze das folgende Wort" without the word itself actually included in the instruction text.
+- For "vocab_gap", "vocab_sentence", and "vocab_context": the instruction must include the actual target vocabulary word (or the sentence with a blank) being practiced, not just a description of it.
+- For "knowledge", "application", and "transfer": the instruction must contain every fact, number, or term needed to answer it; do not assume the student can see the source photos while solving the worksheet.
+
 LANGUAGE RULES:
 - All instruction text (the wording of what to do) must be written in German, since the student and her parents read German.
 - EXCEPTION: when an exercise specifically practices a foreign language (French/English vocabulary or grammar), the vocabulary words, sentences, and translation targets themselves must be in that foreign language, while the instruction wording (what to do) stays in German.
