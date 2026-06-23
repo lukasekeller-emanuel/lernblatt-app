@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lernblatt-Generator</title>
+<style>
+  :root {
+    --accent: #3a6ea5;
+    --accent-dark: #2c5582;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #d8dde3;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --danger: #c0392b;
+    --danger-bg: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px 16px 80px;
+  }
+  header.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0 16px;
+  }
+  header.app-header h1 {
+    font-size: 1.3rem;
+    margin: 0;
+  }
+  .icon-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    background: var(--card);
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 1rem;
+    margin: 0 0 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .photo-thumb {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 3/4;
+    border: 1px solid var(--border);
+    background: #eee;
+  }
+  .photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .photo-thumb .remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 46px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+  .btn-primary:disabled { background: #a9bcd0; cursor: not-allowed; }
+  .btn-secondary { background: #eef1f5; color: var(--text); border: 1px solid var(--border); width: 100%; }
+  .btn-outline { background: var(--card); color: var(--accent); border: 1px solid var(--accent); width: 100%; }
+  .btn-row { display: flex; flex-direction: column; gap: 10px; }
+  .hint { color: var(--muted); font-size: 0.85rem; margin: 4px 0 0; }
+  .error-banner {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid #f5b7b1;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: 0.92rem;
+  }
+  .spinner-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    padding: 10px 0;
+  }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 50;
+  }
+  @media (min-width: 640px) {
+    .modal-overlay { align-items: center; }
+  }
+  .modal {
+    background: var(--card);
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+  }
+  @media (min-width: 640px) {
+    .modal { border-radius: 16px; }
+  }
+  .modal h2 { margin-top: 0; }
+  .field-group { margin-bottom: 16px; }
+  .field-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.92rem;
+  }
+  .field-group input[type="text"],
+  .field-group input[type="password"] {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+  .key-row { display: flex; gap: 8px; }
+  .key-row input { flex: 1; }
+  .key-row button {
+    border: 1px solid var(--border);
+    background: #eef1f5;
+    border-radius: 8px;
+    padding: 0 14px;
+    cursor: pointer;
+  }
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .checkbox-item input { width: 18px; height: 18px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+  .modal-actions .btn { flex: 1; }
+
+  /* Print sheets preview */
+  #printArea { display: none; }
+  .sheet {
+    background: #fff;
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto 24px;
+    padding: 14mm 12mm;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    min-height: 280mm;
+  }
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 18px;
+    font-size: 0.95rem;
+  }
+  .sheet-header .field { flex: 1; }
+  .fillline {
+    display: inline-block;
+    border-bottom: 1px solid #333;
+    min-width: 140px;
+    padding: 0 4px;
+  }
+  .sheet h1 {
+    font-size: 1.25rem;
+    margin: 0 0 18px;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 8px;
+  }
+  .exercise { margin-bottom: 18px; break-inside: avoid; }
+  .ex-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .ex-num { font-weight: 700; }
+  .ex-badge {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--accent-dark);
+    background: #eaf1f8;
+    border-radius: 5px;
+    padding: 2px 7px;
+  }
+  .ex-instruction { font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
+  .answer-lines { margin-top: 10px; }
+  .answer-lines .line {
+    border-bottom: 1px solid #999;
+    height: 22px;
+    margin-bottom: 6px;
+  }
+  .answer-text {
+    margin-top: 6px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    color: #1a3d63;
+    font-weight: 600;
+  }
+
+  @media print {
+    .app-ui { display: none !important; }
+    #printArea { display: block !important; }
+    .sheet {
+      box-shadow: none;
+      border: none;
+      margin: 0;
+      width: auto;
+      max-width: none;
+      min-height: 0;
+      page-break-after: always;
+    }
+    .sheet:last-child { page-break-after: auto; }
+    @page { size: A4; margin: 15mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="app-ui">
+    <header class="app-header">
+      <h1>📝 Lernblatt-Generator</h1>
+      <button class="icon-btn" id="settingsBtn" title="Einstellungen" aria-label="Einstellungen">⚙️</button>
+    </header>
+
+    <div id="errorBanner" class="error-banner" style="display:none;"></div>
+
+    <div class="card">
+      <h2>Fotos</h2>
+      <div class="photo-grid" id="photoGrid"></div>
+      <div class="btn-row">
+        <button class="btn btn-outline" id="addPhotosBtn">📷 Fotos hinzufügen</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+      <p class="hint">Lade ein oder mehrere Fotos von Lernzielen und/oder Vokabellisten hoch.</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-row">
+        <button class="btn btn-primary" id="generateBtn">Arbeitsblatt erstellen</button>
+        <button class="btn btn-secondary" id="resetBtn" style="display:none;">Neues Arbeitsblatt</button>
+      </div>
+      <div id="statusRow" style="display:none;" class="spinner-row">
+        <div class="spinner"></div>
+        <span id="statusText">Wird erstellt …</span>
+      </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+      <h2>Vorschau</h2>
+      <p class="hint" style="margin-bottom:12px;">Unten siehst du eine Vorschau. Zum Drucken: Arbeitsblatt (Seite 1) und Lösungsblatt (Seite 2) starten automatisch auf je einer eigenen Seite.</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="printBtn">🖨️ Drucken</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print / preview output -->
+  <div id="printArea"></div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Einstellungen</h2>
+
+    <div class="field-group">
+      <label for="apiKeyInput">Claude API-Schlüssel</label>
+      <div class="key-row">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+        <button type="button" id="toggleKeyBtn">👁️</button>
+      </div>
+      <p class="hint">Wird nur lokal in deinem Browser gespeichert (localStorage).</p>
+    </div>
+
+    <div class="field-group">
+      <label for="studentNameInput">Name der Schülerin</label>
+      <input type="text" id="studentNameInput" placeholder="z. B. Lena">
+    </div>
+
+    <div class="field-group">
+      <label>Interessen (für Anwendungsaufgaben)</label>
+      <div class="checkbox-grid">
+        <label class="checkbox-item"><input type="checkbox" value="Fußball"> Fußball</label>
+        <label class="checkbox-item"><input type="checkbox" value="Singen"> Singen</label>
+        <label class="checkbox-item"><input type="checkbox" value="Musik"> Musik</label>
+        <label class="checkbox-item"><input type="checkbox" value="Eiskunstlaufen"> Eiskunstlaufen</label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelSettingsBtn">Abbrechen</button>
+      <button class="btn btn-primary" id="saveSettingsBtn">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const STORAGE_KEYS = {
+    apiKey: "lernblatt_apiKey",
+    studentName: "lernblatt_studentName",
+    interests: "lernblatt_interests"
+  };
+
+  const MODEL = "claude-sonnet-4-6";
+  const MAX_DIMENSION = 1600;
+  const JPEG_QUALITY = 0.85;
+
+  /** @type {{id:string, base64:string, mediaType:string, url:string}[]} */
+  let photos = [];
+  let generating = false;
+  let lastResult = null;
+
+  // ---------- DOM refs ----------
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  const apiKeyInput = document.getElementById("apiKeyInput");
+  const toggleKeyBtn = document.getElementById("toggleKeyBtn");
+  const studentNameInput = document.getElementById("studentNameInput");
+  const interestCheckboxes = Array.from(document.querySelectorAll(".checkbox-item input"));
+  const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
+  const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+
+  const photoGrid = document.getElementById("photoGrid");
+  const addPhotosBtn = document.getElementById("addPhotosBtn");
+  const fileInput = document.getElementById("fileInput");
+
+  const generateBtn = document.getElementById("generateBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const statusRow = document.getElementById("statusRow");
+  const statusText = document.getElementById("statusText");
+  const errorBanner = document.getElementById("errorBanner");
+
+  const resultCard = document.getElementById("resultCard");
+  const printBtn = document.getElementById("printBtn");
+  const printArea = document.getElementById("printArea");
+
+  // ---------- Settings ----------
+  function getSettings() {
+    let interests = [];
+    try {
+      interests = JSON.parse(localStorage.getItem(STORAGE_KEYS.interests) || "[]");
+    } catch (e) { interests = []; }
+    return {
+      apiKey: localStorage.getItem(STORAGE_KEYS.apiKey) || "",
+      studentName: localStorage.getItem(STORAGE_KEYS.studentName) || "",
+      interests: Array.isArray(interests) ? interests : []
+    };
+  }
+
+  function openSettings() {
+    const s = getSettings();
+    apiKeyInput.value = s.apiKey;
+    apiKeyInput.type = "password";
+    toggleKeyBtn.textContent = "👁️";
+    studentNameInput.value = s.studentName;
+    interestCheckboxes.forEach(cb => { cb.checked = s.interests.includes(cb.value); });
+    settingsOverlay.style.display = "flex";
+  }
+
+  function closeSettings() {
+    settingsOverlay.style.display = "none";
+  }
+
+  function saveSettings() {
+    localStorage.setItem(STORAGE_KEYS.apiKey, apiKeyInput.value.trim());
+    localStorage.setItem(STORAGE_KEYS.studentName, studentNameInput.value.trim());
+    const interests = interestCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
+    localStorage.setItem(STORAGE_KEYS.interests, JSON.stringify(interests));
+    closeSettings();
+    updateGenerateButtonState();
+  }
+
+  settingsBtn.addEventListener("click", openSettings);
+  cancelSettingsBtn.addEventListener("click", closeSettings);
+  saveSettingsBtn.addEventListener("click", saveSettings);
+  toggleKeyBtn.addEventListener("click", () => {
+    apiKeyInput.type = apiKeyInput.type === "password" ? "text" : "password";
+    toggleKeyBtn.textContent = apiKeyInput.type === "password" ? "👁️" : "🙈";
+  });
+
+  // First-time: if no API key stored, open settings automatically.
+  if (!getSettings().apiKey) {
+    openSettings();
+  }
+
+  // ---------- Photo handling ----------
+  addPhotosBtn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files || []);
+    fileInput.value = "";
+    if (!files.length) return;
+    showError(null);
+    for (const file of files) {
+      try {
+        const { base64, mediaType } = await compressImageToBase64(file);
+        const url = "data:" + mediaType + ";base64," + base64;
+        photos.push({ id: cryptoRandomId(), base64, mediaType, url });
+      } catch (err) {
+        console.error(err);
+        showError("Ein Foto konnte nicht verarbeitet werden: " + (err.message || err));
+      }
+    }
+    renderPhotos();
+    updateGenerateButtonState();
+  });
+
+  function cryptoRandomId() {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  function compressImageToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden"));
+      reader.onload = () => { img.src = reader.result; };
+      img.onerror = () => reject(new Error("Bild konnte nicht geladen werden"));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          if (width >= height) {
+            height = Math.round(height * (MAX_DIMENSION / width));
+            width = MAX_DIMENSION;
+          } else {
+            width = Math.round(width * (MAX_DIMENSION / height));
+            height = MAX_DIMENSION;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+        const base64 = dataUrl.split(",")[1];
+        resolve({ base64, mediaType: "image/jpeg" });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderPhotos() {
+    photoGrid.innerHTML = "";
+    photos.forEach(p => {
+      const div = document.createElement("div");
+      div.className = "photo-thumb";
+      const img = document.createElement("img");
+      img.src = p.url;
+      img.alt = "Foto";
+      const btn = document.createElement("button");
+      btn.className = "remove-btn";
+      btn.textContent = "×";
+      btn.setAttribute("aria-label", "Foto entfernen");
+      btn.addEventListener("click", () => {
+        photos = photos.filter(x => x.id !== p.id);
+        renderPhotos();
+        updateGenerateButtonState();
+      });
+      div.appendChild(img);
+      div.appendChild(btn);
+      photoGrid.appendChild(div);
+    });
+  }
+
+  function updateGenerateButtonState() {
+    const s = getSettings();
+    generateBtn.disabled = generating || photos.length === 0 || !s.apiKey;
+  }
+
+  // ---------- Error / status ----------
+  function showError(message) {
+    if (!message) {
+      errorBanner.style.display = "none";
+      errorBanner.textContent = "";
+      return;
+    }
+    errorBanner.style.display = "block";
+    errorBanner.textContent = message;
+  }
+
+  function setGenerating(isGenerating, text) {
+    generating = isGenerating;
+    statusRow.style.display = isGenerating ? "flex" : "none";
+    statusText.textContent = text || "Wird erstellt …";
+    updateGenerateButtonState();
+  }
+
+  // ---------- Claude API ----------
+  function buildSystemPrompt() {
+    return `You are an expert tutor creating a printable practice worksheet for a 13-year-old German-speaking student, based on photographed pages of her schoolwork (learning objectives ("Lernziele") and/or vocabulary lists ("Vokabeln")).
+
+You will receive one or more photos. Read ALL text content from every photo carefully, including handwritten notes.
+
+STEP 1 - Detect the primary language of the source content: German, French, or English. Report it as "de", "fr", or "en".
+
+STEP 2 - Determine content type per photo: learning objectives ("Lernziele") and/or vocabulary list ("Vokabeln"). Photos may contain a mix.
+
+STEP 3 - Generate a worksheet with 10 to 15 exercises total, following these rules:
+- Several "knowledge" exercises: direct questions testing the learning objectives as stated in the source.
+- Several "application" exercises: testing the same kind of knowledge, but woven naturally into the context of one of these interests: Fussball (football), Singen (singing), Musik (music), Eiskunstlaufen (ice skating) - ONLY use an interest where it fits naturally; never force an unnatural connection. If none fit, write a plain application question instead.
+- Exactly ONE "transfer" exercise that combines two or more different learning objectives (or vocabulary + objective) into a single, more complex task.
+- If a photo is a vocabulary list, ALSO include vocabulary exercises spread among the total count, of these four kinds: "vocab_gap" (fill-in-the-blank using a vocabulary word, blanks shown as ____ inside the instruction text), "vocab_translation" (translate a word or short phrase between the detected language and German), "vocab_sentence" (write an own sentence using a given vocabulary word), "vocab_context" (use a vocabulary word correctly in a given short context/situation).
+- Number exercises sequentially starting at 1.
+- For every exercise, produce a complete, correct model answer suitable for a parent (who may not know the subject) to check against.
+- Suggest how many blank writing lines a student needs: 1 for single words/short translations, 2-3 for sentences/short answers, 3-5 for longer answers.
+
+LANGUAGE RULES:
+- All instruction text (the wording of what to do) must be written in German, since the student and her parents read German.
+- EXCEPTION: when an exercise specifically practices a foreign language (French/English vocabulary or grammar), the vocabulary words, sentences, and translation targets themselves must be in that foreign language, while the instruction wording (what to do) stays in German.
+- If the detected language of the source content is German, everything is simply in German.
+
+OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commentary, exactly matching this schema:
+{
+  "detectedLanguage": "de" | "fr" | "en",
+  "title": "short German title describing the topic/subject, e.g. 'Englisch - Vokabeln: Tiere'",
+  "exercises": [
+    {
+      "number": 1,
+      "type": "knowledge" | "application" | "transfer" | "vocab_gap" | "vocab_translation" | "vocab_sentence" | "vocab_context",
+      "instruction": "the exact text shown to the student",
+      "answer": "the model answer",
+      "writingLines": 2
+    }
+  ]
+}`;
+  }
+
+  async function callClaude(apiKey, studentName, interests) {
+    const content = photos.map(p => ({
+      type: "image",
+      source: { type: "base64", media_type: p.mediaType, data: p.base64 }
+    }));
+    content.push({
+      type: "text",
+      text: `Schuelerin: ${studentName || "(kein Name angegeben)"}. Interessen: ${interests.length ? interests.join(", ") : "keine angegeben"}. Erstelle das Arbeitsblatt gemaess den Systemanweisungen, ausschliesslich als JSON.`
+    });
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 8000,
+        system: buildSystemPrompt(),
+        messages: [{ role: "user", content }]
+      })
+    });
+
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const errJson = await response.json();
+        detail = errJson?.error?.message || JSON.stringify(errJson);
+      } catch (e) {
+        detail = await response.text().catch(() => "");
+      }
+      throw new Error(`Claude API Fehler (${response.status}): ${detail || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const textBlock = (data.content || []).find(b => b.type === "text");
+    if (!textBlock || !textBlock.text) {
+      throw new Error("Antwort enthielt keinen Text.");
+    }
+    return extractJson(textBlock.text);
+  }
+
+  function extractJson(text) {
+    try {
+      return JSON.parse(text);
+    } catch (e) { /* fall through */ }
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (e) { /* fall through */ }
+    }
+    throw new Error("Die Antwort konnte nicht als JSON gelesen werden.");
+  }
+
+  // ---------- Rendering ----------
+  const TYPE_LABELS = {
+    knowledge: "Wissensfrage",
+    application: "Anwendungsaufgabe",
+    transfer: "Transferaufgabe",
+    vocab_gap: "Lückentext",
+    vocab_translation: "Übersetzung",
+    vocab_sentence: "Satzbildung",
+    vocab_context: "Wort im Kontext"
+  };
+
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function renderWorksheet(data, studentName) {
+    const exercises = Array.isArray(data.exercises) ? data.exercises : [];
+
+    // Page 1: student worksheet (no answers)
+    let page1 = `<div class="sheet">
+      <div class="sheet-header">
+        <div class="field">Name: <span class="fillline">${escapeHtml(studentName)}</span></div>
+        <div class="field">Datum: <span class="fillline"></span></div>
+      </div>
+      <h1>${escapeHtml(data.title || "Arbeitsblatt")}</h1>`;
+
+    exercises.forEach(ex => {
+      const lines = Math.max(1, Math.min(8, Number(ex.writingLines) || 2));
+      const lineDivs = Array.from({ length: lines }).map(() => `<div class="line"></div>`).join("");
+      page1 += `<div class="exercise">
+        <div class="ex-head">
+          <span class="ex-num">${escapeHtml(ex.number)}.</span>
+          <span class="ex-badge">${escapeHtml(TYPE_LABELS[ex.type] || ex.type || "")}</span>
+        </div>
+        <div class="ex-instruction">${escapeHtml(ex.instruction)}</div>
+        <div class="answer-lines">${lineDivs}</div>
+      </div>`;
+    });
+    page1 += `</div>`;
+
+    // Page 2: answer sheet
+    let page2 = `<div class="sheet">
+      <h1>${escapeHtml(data.title || "Arbeitsblatt")} – Lösungen</h1>`;
+    exercises.forEach(ex => {
+      page2 += `<div class="exercise">
+        <div class="ex-head">
+          <span class="ex-num">${escapeHtml(ex.number)}.</span>
+          <span class="ex-badge">${escapeHtml(TYPE_LABELS[ex.type] || ex.type || "")}</span>
+        </div>
+        <div class="ex-instruction">${escapeHtml(ex.instruction)}</div>
+        <div class="answer-text">${escapeHtml(ex.answer)}</div>
+      </div>`;
+    });
+    page2 += `</div>`;
+
+    printArea.innerHTML = page1 + page2;
+    printArea.style.display = "block";
+  }
+
+  // ---------- Main actions ----------
+  generateBtn.addEventListener("click", async () => {
+    showError(null);
+    const s = getSettings();
+    if (!s.apiKey) {
+      showError("Bitte zuerst einen API-Schlüssel in den Einstellungen eintragen.");
+      openSettings();
+      return;
+    }
+    if (photos.length === 0) {
+      showError("Bitte zuerst mindestens ein Foto hochladen.");
+      return;
+    }
+    setGenerating(true, "Fotos werden analysiert und Arbeitsblatt erstellt …");
+    try {
+      const result = await callClaude(s.apiKey, s.studentName, s.interests);
+      lastResult = result;
+      renderWorksheet(result, s.studentName);
+      resultCard.style.display = "block";
+      resetBtn.style.display = "block";
+      resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (err) {
+      console.error(err);
+      showError(err.message || String(err));
+    } finally {
+      setGenerating(false);
+    }
+  });
+
+  resetBtn.addEventListener("click", () => {
+    photos = [];
+    lastResult = null;
+    renderPhotos();
+    printArea.innerHTML = "";
+    printArea.style.display = "none";
+    resultCard.style.display = "none";
+    resetBtn.style.display = "none";
+    showError(null);
+    updateGenerateButtonState();
+  });
+
+  printBtn.addEventListener("click", () => {
+    window.print();
+  });
+
+  // ---------- Init ----------
+  renderPhotos();
+  updateGenerateButtonState();
+})();
+</script>
+</body>
+</html>
