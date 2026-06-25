@@ -594,7 +594,7 @@ LANGUAGE RULES:
 - EXCEPTION: when an exercise specifically practices a foreign language (French/English vocabulary or grammar), the vocabulary words, sentences, and translation targets themselves must be in that foreign language, while the instruction wording (what to do) stays in German.
 - If the detected language of the source content is German, everything is simply in German.
 
-OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commentary, no text before or after the JSON object, exactly matching this schema. Your reply will be parsed with JSON.parse, so it must be syntactically valid JSON: use double quotes for every string and key, escape any quotes or newlines inside string values, and never use trailing commas.
+OUTPUT FORMAT - your entire reply must be a single valid JSON object and nothing else. Do not write any preamble, explanation, acknowledgement, markdown code fences, or commentary before or after the JSON. The very first character of your reply must be "{" and the very last character must be "}". Your reply will be parsed with JSON.parse, so it must be syntactically valid JSON: use double quotes for every string and key, escape any quotes or newlines inside string values, and never use trailing commas. Exactly matching this schema:
 {
   "detectedLanguage": "de" | "fr" | "en",
   "title": "short German title describing the topic/subject, e.g. 'Englisch - Vokabeln: Tiere'",
@@ -639,11 +639,8 @@ OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commen
         model: MODEL,
         max_tokens: 8000,
         system: buildSystemPrompt(),
-        // Prefill the assistant turn with the opening brace so Claude continues
-        // straight into JSON instead of adding preamble, markdown fences, etc.
         messages: [
-          { role: "user", content },
-          { role: "assistant", content: "{" }
+          { role: "user", content }
         ]
       })
     });
@@ -668,8 +665,7 @@ OUTPUT FORMAT - respond with ONLY valid JSON, no markdown code fences, no commen
       err.retryable = true;
       throw err;
     }
-    // Re-attach the prefilled opening brace that the API does not echo back.
-    return extractJson("{" + textBlock.text);
+    return extractJson(textBlock.text);
   }
 
   async function callClaude(apiKey, studentName, interests, onRetry) {
